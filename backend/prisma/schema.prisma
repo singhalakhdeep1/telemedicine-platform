@@ -1,0 +1,417 @@
+// Telemedicine Platform Database Schema
+// HIPAA Compliant Design
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  password      String
+  role          UserRole
+  status        UserStatus  @default(PENDING_VERIFICATION)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  lastLoginAt   DateTime?
+
+  // Relations
+  patient       Patient?
+  doctor        Doctor?
+  auditLogs     AuditLog[]
+  appointments  Appointment[]
+
+  @@index([email])
+  @@index([role])
+}
+
+// ============================================
+// DOCTOR PROFILE
+// ============================================
+
+enum DoctorSpecialization {
+  GENERAL_PRACTITIONER
+  CARDIOLOGIST
+  DERMATOLOGIST
+  PEDIATRICIAN
+  PSYCHIATRIST
+  NEUROLOGIST
+  ORTHOPEDIC
+  GYNECOLOGIST
+  ONCOLOGIST
+  ENDOCRINOLOGIST
+}
+
+enum DoctorStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+model Doctor {
+  id                String               @id @default(uuid())
+  userId            String               @unique
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  firstName         String
+  lastName          String
+  specialization    DoctorSpecialization
+  licenseNumber     String               @unique
+  licenseExpiry     DateTime
+  status            DoctorStatus         @default(PENDING_VERIFICATION)
+  
+  consultationFee   Decimal              @db.Decimal(10, 2)
+  experience        Int                  // years
+  education         String               // medical school
+  bio               String?
+  profileImage      String?
+  
+  availabilitySlots AvailabilitySlot[]
+  appointments      Appointment[]
+  prescriptions     Prescription[]
+  medicalRecords    MedicalRecord[]
+
+  @@index([specialization])
+  @@index([status])
+}
+
+model AvailabilitySlot {
+  id          String   @id @default(uuid())
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  dayOfWeek   Int      // 0-6 (Sunday-Saturday)
+  startTime   String   // "09:00"
+  endTime     String   // "17:00"
+  isAvailable Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([doctorId, dayOfWeek, startTime])
+  @@index([doctorId])
+}
+
+// ============================================
+// PATIENT PROFILE
+// ============================================
+
+model Patient {
+  id              String         @id @default(uuid())
+  userId          String         @unique
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime
+  gender          String
+  phone           String
+  address         String?
+  emergencyContact String?
+  bloodType       String?
+  allergies       String?        // JSON array
+  chronicConditions String?      // JSON array
+  
+  profileImage    String?
+  
+  appointments    Appointment[]
+  medicalRecords  MedicalRecord[]
+  prescriptions   Prescription[]
+
+  @@index([userId])
+}
+
+// ============================================
+// APPOINTMENTS
+// ============================================
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Appointment {
+  id              String            @id @default(uuid())
+  patientId       String
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  doctorId        String
+  doctor          Doctor            @relation(fields: [doctorId], references: [id])
+  userId          String            // for User relation
+  user            User              @relation(fields: [userId], references: [id])
+  
+  scheduledAt     DateTime
+  duration        Int               // minutes
+  status          AppointmentStatus @default(PENDING)
+  
+  reason          String
+  symptoms        String?
+  notes           String?
+  
+  videoCallId     String?           // WebRTC room ID
+  videoCallStartedAt DateTime?
+  videoCallEndedAt DateTime?
+  
+  paymentId       String?
+  payment         Payment?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+// ============================================
+// MEDICAL RECORDS (FHIR COMPLIANT)
+// ============================================
+
+enum RecordType {
+  DIAGNOSIS
+  LAB_RESULT
+  IMAGING
+  VITAL_SIGNS
+  PROCEDURE
+  ALLERGY
+  MEDICATION_HISTORY
+  DISCHARGE_SUMMARY
+}
+
+model MedicalRecord {
+  id              String      @id @default(uuid())
+  patientId       String
+  patient         Patient     @relation(fields: [patientId], references: [id])
+  doctorId        String
+  doctor          Doctor      @relation(fields: [doctorId], references: [id])
+  
+  recordType      RecordType
+  title           String
+  description     String      @db.Text
+  fhirResource    Json        // FHIR R4 compliant JSON
+  
+  attachments     String[]    // S3 URLs
+  recordedAt      DateTime    @default(now())
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([recordType])
+  @@index([recordedAt])
+}
+
+// ============================================
+// PRESCRIPTIONS
+// ============================================
+
+enum PrescriptionStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+model Prescription {
+  id              String              @id @default(uuid())
+  patientId       String
+  patient         Patient             @relation(fields: [patientId], references: [id])
+  doctorId        String
+  doctor          Doctor              @relation(fields: [doctorId], references: [id])
+  appointmentId   String?
+  
+  status          PrescriptionStatus  @default(DRAFT)
+  diagnosis       String
+  notes           String?
+  
+  prescribedAt    DateTime            @default(now())
+  expiresAt       DateTime
+  
+  drugs           PrescriptionDrug[]
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+}
+
+model PrescriptionDrug {
+  id              String       @id @default(uuid())
+  prescriptionId  String
+  prescription    Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  
+  drugName        String
+  dosage          String       // e.g., "500mg"
+  frequency       String       // e.g., "Twice daily"
+  duration        String       // e.g., "7 days"
+  instructions    String?
+  
+  createdAt       DateTime     @default(now())
+
+  @@index([prescriptionId])
+}
+
+// ============================================
+// PAYMENTS
+// ============================================
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  appointmentId   String       @unique
+  appointment     Appointment   @relation(fields: [appointmentId], references: [id])
+  
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("USD")
+  status          PaymentStatus @default(PENDING)
+  
+  stripePaymentId String?       @unique
+  stripeInvoiceId String?
+  
+  paidAt          DateTime?
+  refundedAt      DateTime?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([appointmentId])
+  @@index([status])
+}
+
+// ============================================
+// VIDEO CONSULTATION
+// ============================================
+
+model VideoCall {
+  id              String      @id @default(uuid())
+  appointmentId   String      @unique
+  appointment     Appointment @relation(fields: [appointmentId], references: [id])
+  
+  roomId          String      @unique
+  patientToken    String
+  doctorToken     String
+  
+  startedAt       DateTime?
+  endedAt         DateTime?
+  duration        Int?        // seconds
+  
+  recordingUrl    String?     // S3 URL
+  qualityScore    Float?      // 0-100
+  
+  createdAt       DateTime    @default(now())
+
+  @@index([appointmentId])
+  @@index([roomId])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+enum NotificationType {
+  APPOINTMENT_REMINDER
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_CANCELLED
+  PRESCRIPTION_READY
+  PAYMENT_RECEIVED
+  SYSTEM_MESSAGE
+}
+
+enum NotificationStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model Notification {
+  id              String            @id @default(uuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id])
+  
+  type            NotificationType
+  title           String
+  message         String            @db.Text
+  status          NotificationStatus @default(SENT)
+  
+  metadata        Json?             // additional data
+  
+  sentAt          DateTime          @default(now())
+  readAt          DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@index([sentAt])
+}
+
+// ============================================
+// HIPAA AUDIT LOG
+// ============================================
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  EXPORT
+  LOGIN
+  LOGOUT
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  
+  action      AuditAction
+  resource    String      // e.g., "MedicalRecord", "Appointment"
+  resourceId  String?
+  
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?       // additional context
+  
+  createdAt   DateTime    @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+}
