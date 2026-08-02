@@ -140,6 +140,8 @@ model Patient {
   appointments    Appointment[]
   medicalRecords  MedicalRecord[]
   prescriptions   Prescription[]
+  iotDevices      IoTDevice[]
+  ehrConnections  EHRConnection[]
 
   @@index([userId])
 }
@@ -414,4 +416,240 @@ model AuditLog {
   @@index([action])
   @@index([resource])
   @@index([createdAt])
+}
+
+// ============================================
+// REMOTE PATIENT MONITORING (IoT)
+// ============================================
+
+enum DeviceType {
+  BLOOD_PRESSURE_MONITOR
+  GLUCOSE_METER
+  HEART_RATE_MONITOR
+  OXIMETER
+  THERMOMETER
+  WEIGHT_SCALE
+  FITNESS_TRACKER
+  SMART_WATCH
+}
+
+enum DeviceStatus {
+  ACTIVE
+  INACTIVE
+  MALFUNCTIONING
+  DISCONNECTED
+}
+
+model IoTDevice {
+  id              String        @id @default(uuid())
+  patientId       String
+  patient         Patient       @relation(fields: [patientId], references: [id])
+  
+  deviceType      DeviceType
+  manufacturer    String
+  model           String
+  serialNumber    String        @unique
+  firmwareVersion String?
+  
+  status          DeviceStatus  @default(ACTIVE)
+  lastSyncAt      DateTime?
+  batteryLevel    Int?          // percentage
+  
+  metadata        Json?         // device-specific data
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  vitalSigns      VitalSign[]
+
+  @@index([patientId])
+  @@index([deviceType])
+  @@index([status])
+}
+
+enum VitalSignType {
+  BLOOD_PRESSURE_SYSTOLIC
+  BLOOD_PRESSURE_DIASTOLIC
+  HEART_RATE
+  BLOOD_GLUCOSE
+  OXYGEN_SATURATION
+  TEMPERATURE
+  WEIGHT
+  STEPS
+  SLEEP_HOURS
+}
+
+model VitalSign {
+  id              String        @id @default(uuid())
+  deviceId        String
+  device          IoTDevice     @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  patientId       String
+  
+  type            VitalSignType
+  value           Float
+  unit            String        // e.g., "mmHg", "bpm", "mg/dL"
+  
+  isAbnormal      Boolean       @default(false)
+  severity        String?       // LOW, MEDIUM, HIGH
+  
+  recordedAt      DateTime      @default(now())
+  
+  createdAt       DateTime      @default(now())
+
+  @@index([deviceId])
+  @@index([patientId])
+  @@index([type])
+  @@index([recordedAt])
+}
+
+model VitalSignAlert {
+  id              String        @id @default(uuid())
+  patientId       String
+  vitalSignId      String
+  
+  type            VitalSignType
+  value           Float
+  threshold       Float
+  severity        String        // LOW, MEDIUM, HIGH, CRITICAL
+  message         String
+  
+  acknowledged    Boolean       @default(false)
+  acknowledgedAt  DateTime?
+  acknowledgedBy  String?       // doctor ID
+  
+  createdAt       DateTime      @default(now())
+
+  @@index([patientId])
+  @@index([severity])
+  @@index([acknowledged])
+}
+
+// ============================================
+// EHR/FHIR INTEGRATION
+// ============================================
+
+enum EHRSystem {
+  EPIC
+  CERNER
+  ALLSCRIPTS
+  ATHENAHEALTH
+  ECLINICALWORKS
+  MEDITECH
+  CUSTOM
+}
+
+enum IntegrationStatus {
+  PENDING
+  ACTIVE
+  ERROR
+  REVOKED
+}
+
+model EHRConnection {
+  id              String            @id @default(uuid())
+  patientId       String
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  
+  system          EHRSystem
+  systemName      String            // e.g., "Mayo Clinic Epic"
+  patientIdInEHR  String            // external patient ID
+  
+  status          IntegrationStatus @default(PENDING)
+  lastSyncAt      DateTime?
+  syncFrequency   String            // e.g., "daily", "weekly"
+  
+  credentials     Json              // encrypted connection details
+  metadata        Json?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  syncLogs        EHRSyncLog[]
+
+  @@index([patientId])
+  @@index([system])
+  @@index([status])
+}
+
+model EHRSyncLog {
+  id              String        @id @default(uuid())
+  connectionId    String
+  connection      EHRConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  
+  type            String        // IMPORT, EXPORT, SYNC
+  status          String        // SUCCESS, FAILED, PARTIAL
+  recordsCount    Int
+  errorMessage    String?
+  
+  startedAt       DateTime      @default(now())
+  completedAt     DateTime?
+
+  @@index([connectionId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+// ============================================
+// ANALYTICS
+// ============================================
+
+enum MetricType {
+  APPOINTMENT_VOLUME
+  PATIENT_SATISFACTION
+  REVENUE
+  NO_SHOW_RATE
+  AVERAGE_CONSULTATION_TIME
+  PRESCRIPTION_VOLUME
+  READMISSION_RATE
+  PATIENT_ENGAGEMENT
+}
+
+model AnalyticsMetric {
+  id              String      @id @default(uuid())
+  type            MetricType
+  
+  value           Float
+  previousValue   Float?
+  changePercent   Float?
+  
+  period          String      // DAILY, WEEKLY, MONTHLY
+  periodStart     DateTime
+  periodEnd       DateTime
+  
+  breakdown       Json?       // detailed breakdown data
+  
+  doctorId        String?     // null for platform-wide metrics
+  patientId       String?     // for patient-specific metrics
+  
+  createdAt       DateTime    @default(now())
+
+  @@index([type])
+  @@index([period])
+  @@index([periodStart])
+  @@index([doctorId])
+}
+
+model AnalyticsReport {
+  id              String      @id @default(uuid())
+  name            String
+  description     String?
+  
+  type            String      // PATIENT_OUTCOMES, FINANCIAL, OPERATIONAL
+  generatedBy     String      // user ID
+  
+  data            Json        // report data
+  charts          Json?       // chart configurations
+  
+  scheduled       Boolean     @default(false)
+  schedule        Json?       // cron expression
+  
+  lastGeneratedAt DateTime?
+  nextRunAt       DateTime?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([type])
+  @@index([scheduled])
+  @@index([nextRunAt])
 }

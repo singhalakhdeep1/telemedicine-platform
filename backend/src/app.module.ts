@@ -9,6 +9,14 @@ import { PrescriptionsModule } from './modules/prescriptions/prescriptions.modul
 import { VideoConsultationModule } from './modules/video-consultation/video-consultation.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { SecurityModule } from './modules/security/security.module';
+import { IoTModule } from './modules/iot/iot.module';
+import { EHRIntegrationModule } from './modules/ehr/ehr-integration.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
+import { CommonModule } from './common/common.module';
+import { StorageModule } from './modules/storage/storage.module';
+import { EmailModule } from './modules/email/email.module';
 
 @Module({
   imports: [
@@ -25,6 +33,14 @@ import { PaymentsModule } from './modules/payments/payments.module';
     VideoConsultationModule,
     NotificationsModule,
     PaymentsModule,
+    SecurityModule,
+    IoTModule,
+    EHRIntegrationModule,
+    AnalyticsModule,
+    SchedulerModule,
+    CommonModule,
+    StorageModule,
+    EmailModule,
   ],
 })
 export class AppModule {}
