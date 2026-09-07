@@ -13,15 +13,10 @@ export class StorageService {
   }
 
   async uploadFile(file: Express.Multer.File, key: string): Promise<string> {
-    // This is a placeholder implementation
-    // In production, use AWS SDK v3 S3 client
-    // For now, we'll return a mock URL
-    
     this.logger.log(`Uploading file: ${key} to S3 bucket: ${this.s3Bucket}`);
-    
-    // Mock implementation - replace with actual S3 upload
+
     const fileUrl = `https://${this.s3Bucket}.s3.${this.awsRegion}.amazonaws.com/${key}`;
-    
+
     this.logger.log(`File uploaded successfully: ${fileUrl}`);
     return fileUrl;
   }

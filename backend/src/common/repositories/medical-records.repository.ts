@@ -87,8 +87,7 @@ export class MedicalRecordsRepository extends BaseRepository<MedicalRecord> {
   ) {
     const record = await this.create(data);
 
-    // Audit log entry will be created by AuditService
-    // This is a placeholder for the audit logging integration
+    // Audit log entry is logged locally until an external audit sink is configured.
     this.logger.log(
       `Medical record created: ${record.id} by user ${userId} from ${ipAddress}`,
     );

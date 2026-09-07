@@ -374,12 +374,45 @@ export class StructuredLoggerService implements LoggerService {
   }
 
   /**
-   * Send log to aggregation service (placeholder)
+   * Send log to aggregation service when configured.
+   * Falls back to console logging to keep production logs observable.
    */
   private async sendToLogAggregation(entry: LogEntry): Promise<void> {
-    // Integration with log aggregation service
-    // e.g., Winston transport, ELK, CloudWatch
-    // This would be implemented based on the chosen log service
+    const aggregationEndpoint = process.env.LOG_AGGREGATION_ENDPOINT;
+
+    if (!aggregationEndpoint) {
+      console.info('[structured-logger] log aggregation endpoint not configured', {
+        level: entry.level,
+        action: entry.context.action,
+        resource: entry.context.resource,
+      });
+      return;
+    }
+
+    try {
+      // In production this could send to Elasticsearch, CloudWatch, or Datadog.
+      // Here we intentionally avoid a hard dependency and keep the payload safe to serialize.
+      const response = await fetch(aggregationEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timestamp: entry.timestamp,
+          level: entry.level,
+          message: entry.message,
+          context: entry.context,
+          data: entry.data,
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn('[structured-logger] log aggregation delivery failed', {
+          status: response.status,
+          action: entry.context.action,
+        });
+      }
+    } catch (error) {
+      console.warn('[structured-logger] log aggregation unavailable', { error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   /**
