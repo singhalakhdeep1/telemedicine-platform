@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotificationType } from '@prisma/client';
+import { NotificationType, NotificationStatus } from '@prisma/client';
 
 @Injectable()
 export class NotificationsService {
@@ -10,10 +10,10 @@ export class NotificationsService {
     return this.prisma.notification.create({
       data: {
         userId,
-        type: data.type,
+        type: data.type as NotificationType,
         title: data.title,
         message: data.message,
-        relatedId: data.relatedId,
+        metadata: data.relatedId ? { relatedId: data.relatedId } : undefined,
       },
     });
   }
@@ -21,7 +21,7 @@ export class NotificationsService {
   async getUserNotifications(userId: string) {
     return this.prisma.notification.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { sentAt: 'desc' },
       take: 50,
     });
   }
@@ -29,20 +29,20 @@ export class NotificationsService {
   async markAsRead(notificationId: string) {
     return this.prisma.notification.update({
       where: { id: notificationId },
-      data: { read: true },
+      data: { status: NotificationStatus.READ, readAt: new Date() },
     });
   }
 
   async markAllAsRead(userId: string) {
     return this.prisma.notification.updateMany({
-      where: { userId, read: false },
-      data: { read: true },
+      where: { userId, status: { not: NotificationStatus.READ } },
+      data: { status: NotificationStatus.READ, readAt: new Date() },
     });
   }
 
   async getUnreadCount(userId: string) {
     return this.prisma.notification.count({
-      where: { userId, read: false },
+      where: { userId, status: { not: NotificationStatus.READ } },
     });
   }
 }

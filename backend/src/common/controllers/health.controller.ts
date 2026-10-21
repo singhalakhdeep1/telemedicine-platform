@@ -14,15 +14,7 @@ export class HealthController {
   @HealthCheck()
   check() {
     return this.health.check([
-      async () => ({
-        database: await this.db.pingCheck('database'),
-      }),
-      async () => ({
-        prisma: {
-          status: 'up',
-          message: 'Prisma connection healthy',
-        },
-      }),
+      () => this.db.pingCheck('database'),
     ]);
   }
 

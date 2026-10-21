@@ -7,7 +7,7 @@ export class IoTService {
   constructor(private prisma: PrismaService) {}
 
   async registerDevice(patientId: string, data: any) {
-    return this.prisma.iotDevice.create({
+    return this.prisma.ioTDevice.create({
       data: {
         patientId,
         deviceType: data.deviceType,
@@ -22,28 +22,28 @@ export class IoTService {
   }
 
   async getPatientDevices(patientId: string) {
-    return this.prisma.iotDevice.findMany({
+    return this.prisma.ioTDevice.findMany({
       where: { patientId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async getDevice(deviceId: string) {
-    return this.prisma.iotDevice.findUnique({
+    return this.prisma.ioTDevice.findUnique({
       where: { id: deviceId },
       include: { vitalSigns: true },
     });
   }
 
   async updateDeviceStatus(deviceId: string, status: DeviceStatus) {
-    return this.prisma.iotDevice.update({
+    return this.prisma.ioTDevice.update({
       where: { id: deviceId },
       data: { status, lastSyncAt: new Date() },
     });
   }
 
   async recordVitalSign(deviceId: string, data: any) {
-    const device = await this.prisma.iotDevice.findUnique({
+    const device = await this.prisma.ioTDevice.findUnique({
       where: { id: deviceId },
     });
 
@@ -75,7 +75,7 @@ export class IoTService {
     }
 
     // Update device sync time
-    await this.prisma.iotDevice.update({
+    await this.prisma.ioTDevice.update({
       where: { id: deviceId },
       data: { lastSyncAt: new Date() },
     });

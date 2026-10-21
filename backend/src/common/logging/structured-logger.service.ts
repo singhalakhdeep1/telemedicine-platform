@@ -324,7 +324,8 @@ export class StructuredLoggerService implements LoggerService {
   /**
    * Log to console (in production, this would go to a log aggregation service)
    */
-  private log(entry: LogEntry): void {
+  log(entry: LogEntry | string): void {
+    if (typeof entry === 'string') { console.log(entry); return; }
     // Check sampling
     if (this.shouldSample(entry.level)) {
       this.statistics.sampledLogs++;

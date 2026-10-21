@@ -1,24 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditAction } from '@prisma/client';
 
 @Injectable()
 export class AuditLogService {
   constructor(private prisma: PrismaService) {}
 
-  async logAccess(userId: string, action: string, resource: string, resourceId: string) {
+  async logAccess(userId: string, action: AuditAction, resource: string, resourceId?: string) {
     await this.prisma.auditLog.create({
       data: {
         userId,
         action,
         resource,
         resourceId,
-        ipAddress: '127.0.0.1', // In production, get from request
+        ipAddress: '127.0.0.1',
         userAgent: 'Telemedicine Platform',
       },
     });
   }
 
-  async getAuditLogs(filters?: { userId?: string; resource?: string; action?: string }) {
+  async getAuditLogs(filters?: { userId?: string; resource?: string; action?: AuditAction }) {
     return this.prisma.auditLog.findMany({
       where: filters,
       include: {
@@ -29,7 +30,7 @@ export class AuditLogService {
           },
         },
       },
-      orderBy: { timestamp: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 100,
     });
   }

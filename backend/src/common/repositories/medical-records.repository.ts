@@ -68,7 +68,7 @@ export class MedicalRecordsRepository extends BaseRepository<MedicalRecord> {
       where: {
         fhirResource: {
           path: [],
-          string_CONTAINS: searchTerm,
+          string_contains: searchTerm,
         },
       },
       include: { patient: true, doctor: true },

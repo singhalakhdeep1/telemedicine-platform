@@ -5,8 +5,14 @@
  * Enhanced with soft deletes, audit logging, and versioning
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { Injectable, Logger } from '@nestjs/common';
+
+type WhereInput = Record<string, unknown>;
+type IncludeInput = Record<string, unknown> | undefined;
+type OrderByInput = Record<string, unknown> | Record<string, unknown>[];
+type CreateInput = Record<string, unknown>;
+type UpdateInput = Record<string, unknown>;
 
 export interface AuditLog {
   id: string;
@@ -46,10 +52,10 @@ export abstract class BaseRepository<T> {
   /**
    * Find single record by ID (excluding soft-deleted records)
    */
-  async findById(id: string, include?: Prisma.IncludeUnknown): Promise<T | null> {
-    const where = this.enableSoftDeletes 
-      ? { id, deletedAt: null } as Prisma.WhereUnknown
-      : { id } as Prisma.WhereUnknown;
+  async findById(id: string, include?: IncludeInput): Promise<T | null> {
+    const where = this.enableSoftDeletes
+      ? { id, deletedAt: null } as WhereInput
+      : { id } as WhereInput;
     
     return this.prisma[this.getModelName()].findUnique({
       where,
@@ -61,11 +67,11 @@ export abstract class BaseRepository<T> {
    * Find single record by conditions (excluding soft-deleted records)
    */
   async findOne(
-    where: Prisma.WhereUnknown,
-    include?: Prisma.IncludeUnknown,
+    where: WhereInput,
+    include?: IncludeInput,
   ): Promise<T | null> {
     const finalWhere = this.enableSoftDeletes
-      ? { ...where, deletedAt: null } as Prisma.WhereUnknown
+      ? { ...where, deletedAt: null } as WhereInput
       : where;
     
     return this.prisma[this.getModelName()].findFirst({
@@ -78,15 +84,15 @@ export abstract class BaseRepository<T> {
    * Find multiple records with pagination (excluding soft-deleted records)
    */
   async findMany(
-    where?: Prisma.WhereUnknown,
-    include?: Prisma.IncludeUnknown,
+    where?: WhereInput,
+    include?: IncludeInput,
     skip?: number,
     take?: number,
-    orderBy?: Prisma.OrderByUnknown,
+    orderBy?: OrderByInput,
   ): Promise<T[]> {
     const finalWhere = this.enableSoftDeletes && where
-      ? { ...where, deletedAt: null } as Prisma.WhereUnknown
-      : where as Prisma.WhereUnknown;
+      ? { ...where, deletedAt: null } as WhereInput
+      : where as WhereInput;
     
     return this.prisma[this.getModelName()].findMany({
       where: finalWhere,
@@ -102,16 +108,16 @@ export abstract class BaseRepository<T> {
    * Enhanced with bidirectional cursor support
    */
   async findManyCursor(
-    where?: Prisma.WhereUnknown,
-    include?: Prisma.IncludeUnknown,
+    where?: WhereInput,
+    include?: IncludeInput,
     cursor?: string,
     take?: number,
-    orderBy?: Prisma.OrderByUnknown,
+    orderBy?: OrderByInput,
     direction?: 'forward' | 'backward',
   ): Promise<{ data: T[]; nextCursor: string | null; previousCursor: string | null; hasMore: boolean }> {
     const finalWhere = this.enableSoftDeletes && where
-      ? { ...where, deletedAt: null } as Prisma.WhereUnknown
-      : where as Prisma.WhereUnknown;
+      ? { ...where, deletedAt: null } as WhereInput
+      : where as WhereInput;
     
     const limit = take || 20;
     const cursorDirection = direction || 'forward';
@@ -152,7 +158,7 @@ export abstract class BaseRepository<T> {
   /**
    * Reverse order by for backward pagination
    */
-  private reverseOrderBy(orderBy: Prisma.OrderByUnknown): Prisma.OrderByUnknown {
+  private reverseOrderBy(orderBy: OrderByInput): OrderByInput {
     if (typeof orderBy === 'string') {
       return { [orderBy]: 'desc' };
     }
@@ -204,10 +210,10 @@ export abstract class BaseRepository<T> {
    * Find soft-deleted records
    */
   async findDeleted(
-    where?: Prisma.WhereUnknown,
-    include?: Prisma.IncludeUnknown,
+    where?: WhereInput,
+    include?: IncludeInput,
   ): Promise<T[]> {
-    const finalWhere = { ...where, deletedAt: { not: null } } as Prisma.WhereUnknown;
+    const finalWhere = { ...where, deletedAt: { not: null } } as WhereInput;
     
     return this.prisma[this.getModelName()].findMany({
       where: finalWhere,
@@ -218,7 +224,7 @@ export abstract class BaseRepository<T> {
   /**
    * Create new record with audit logging
    */
-  async create(data: Prisma.CreateUnknown, userId?: string): Promise<T> {
+  async create(data: CreateInput, userId?: string): Promise<T> {
     const result = await this.prisma[this.getModelName()].create({
       data,
     }) as Promise<T>;
@@ -239,7 +245,7 @@ export abstract class BaseRepository<T> {
    */
   async update(
     id: string,
-    data: Prisma.UpdateUnknown,
+    data: UpdateInput,
     userId?: string,
   ): Promise<T> {
     const existing = await this.findById(id);
@@ -270,7 +276,7 @@ export abstract class BaseRepository<T> {
   async softDelete(id: string, userId?: string): Promise<T> {
     const result = await this.prisma[this.getModelName()].update({
       where: { id },
-      data: { deletedAt: new Date() } as Prisma.UpdateUnknown,
+      data: { deletedAt: new Date() } as UpdateInput,
     }) as Promise<T>;
 
     if (this.enableAuditLog) {
@@ -286,7 +292,7 @@ export abstract class BaseRepository<T> {
   async restore(id: string, userId?: string): Promise<T> {
     const result = await this.prisma[this.getModelName()].update({
       where: { id },
-      data: { deletedAt: null } as Prisma.UpdateUnknown,
+      data: { deletedAt: null } as UpdateInput,
     }) as Promise<T>;
 
     if (this.enableAuditLog) {
@@ -315,10 +321,10 @@ export abstract class BaseRepository<T> {
   /**
    * Count records matching conditions (excluding soft-deleted records)
    */
-  async count(where?: Prisma.WhereUnknown): Promise<number> {
+  async count(where?: WhereInput): Promise<number> {
     const finalWhere = this.enableSoftDeletes && where
-      ? { ...where, deletedAt: null } as Prisma.WhereUnknown
-      : where as Prisma.WhereUnknown;
+      ? { ...where, deletedAt: null } as WhereInput
+      : where as WhereInput;
     
     return this.prisma[this.getModelName()].count({ where: finalWhere });
   }
@@ -326,15 +332,15 @@ export abstract class BaseRepository<T> {
   /**
    * Count soft-deleted records
    */
-  async countDeleted(where?: Prisma.WhereUnknown): Promise<number> {
-    const finalWhere = { ...where, deletedAt: { not: null } } as Prisma.WhereUnknown;
+  async countDeleted(where?: WhereInput): Promise<number> {
+    const finalWhere = { ...where, deletedAt: { not: null } } as WhereInput;
     return this.prisma[this.getModelName()].count({ where: finalWhere });
   }
 
   /**
    * Check if record exists (excluding soft-deleted records)
    */
-  async exists(where: Prisma.WhereUnknown): Promise<boolean> {
+  async exists(where: WhereInput): Promise<boolean> {
     const count = await this.count(where);
     return count > 0;
   }
@@ -351,7 +357,7 @@ export abstract class BaseRepository<T> {
   /**
    * Batch operations
    */
-  async createMany(data: Prisma.CreateUnknown[], userId?: string): Promise<{ count: number }> {
+  async createMany(data: CreateInput[], userId?: string): Promise<{ count: number }> {
     const result = await this.prisma[this.getModelName()].createMany({
       data,
       skipDuplicates: true,
@@ -359,7 +365,7 @@ export abstract class BaseRepository<T> {
 
     if (this.enableAuditLog) {
       for (const item of data) {
-        await this.logAudit('CREATE', item['id'], item, userId);
+        await this.logAudit('CREATE', item['id'] as string, item, userId);
       }
     }
 
@@ -370,8 +376,8 @@ export abstract class BaseRepository<T> {
    * Update many records
    */
   async updateMany(
-    where: Prisma.WhereUnknown,
-    data: Prisma.UpdateUnknown,
+    where: WhereInput,
+    data: UpdateInput,
     userId?: string,
   ): Promise<{ count: number }> {
     const result = await this.prisma[this.getModelName()].updateMany({
@@ -468,7 +474,7 @@ export abstract class BaseRepository<T> {
       throw new Error(`Version ${version} not found for entity ${entityId}`);
     }
 
-    return this.update(entityId, targetVersion.data as Prisma.UpdateUnknown, userId);
+    return this.update(entityId, targetVersion.data as UpdateInput, userId);
   }
 
   /**

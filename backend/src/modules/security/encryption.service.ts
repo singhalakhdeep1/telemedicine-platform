@@ -25,7 +25,7 @@ export class EncryptionService {
     const salt = crypto.randomBytes(this.saltLength);
     const key = this.getKey(salt);
     const iv = crypto.randomBytes(this.ivLength);
-    const cipher = crypto.createCipheriv(this.algorithm, key, iv);
+    const cipher = crypto.createCipheriv(this.algorithm, key, iv) as crypto.CipherGCM;
     const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
 
@@ -40,7 +40,7 @@ export class EncryptionService {
     const encrypted = buffer.subarray(this.encryptedPosition);
 
     const key = this.getKey(salt);
-    const decipher = crypto.createDecipheriv(this.algorithm, key, iv);
+    const decipher = crypto.createDecipheriv(this.algorithm, key, iv) as crypto.DecipherGCM;
     decipher.setAuthTag(tag);
 
     return decipher.update(encrypted) + decipher.final('utf8');

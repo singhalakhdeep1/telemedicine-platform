@@ -27,7 +27,7 @@ export class PaymentsService {
       throw new NotFoundException('Appointment not found');
     }
 
-    const amount = appointment.doctor.consultationFee * 100; // Convert to cents
+    const amount = Number(appointment.doctor.consultationFee) * 100; // Convert to cents
 
     const paymentIntent = await this.stripe.paymentIntents.create({
       amount,
@@ -41,7 +41,7 @@ export class PaymentsService {
         appointmentId,
         amount: appointment.doctor.consultationFee,
         currency: 'USD',
-        stripePaymentIntentId: paymentIntent.id,
+        stripePaymentId: paymentIntent.id,
         status: PaymentStatus.PENDING,
       },
     });
@@ -56,7 +56,7 @@ export class PaymentsService {
     const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
 
     const payment = await this.prisma.payment.findUnique({
-      where: { stripePaymentIntentId: paymentIntentId },
+      where: { stripePaymentId: paymentIntentId },
     });
 
     if (!payment) {
@@ -91,9 +91,9 @@ export class PaymentsService {
       throw new NotFoundException('Payment not found');
     }
 
-    if (payment.stripePaymentIntentId) {
+    if (payment.stripePaymentId) {
       await this.stripe.refunds.create({
-        payment_intent: payment.stripePaymentIntentId,
+        payment_intent: payment.stripePaymentId,
       });
     }
 

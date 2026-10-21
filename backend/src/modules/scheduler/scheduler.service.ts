@@ -148,7 +148,7 @@ export class SchedulerService {
   async checkIoTDeviceHealth() {
     this.logger.log('Checking IoT device health...');
     try {
-      const devices = await this.prisma.iotDevice.findMany({
+      const devices = await this.prisma.ioTDevice.findMany({
         where: { status: 'ACTIVE' },
       });
 
@@ -157,7 +157,7 @@ export class SchedulerService {
 
       for (const device of devices) {
         if (device.lastSyncAt && device.lastSyncAt < oneHourAgo) {
-          await this.prisma.iotDevice.update({
+          await this.prisma.ioTDevice.update({
             where: { id: device.id },
             data: { status: 'DISCONNECTED' },
           });

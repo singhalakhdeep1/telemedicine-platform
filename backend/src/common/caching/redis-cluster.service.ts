@@ -86,11 +86,10 @@ export class RedisClusterService {
         tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
       },
       enableReadyCheck: true,
-      maxRetriesPerRequest: 3,
       retryDelayOnFailover: 100,
       retryDelayOnClusterDown: 300,
-      scaleReads: 'slave', // Read from replicas for better performance
-    });
+      scaleReads: 'slave' as any,
+    } as any);
 
     this.cluster.on('connect', () => {
       this.logger.log('Redis Cluster connected');
@@ -414,13 +413,13 @@ export class RedisClusterService {
    */
   async getClusterHealth(): Promise<any> {
     try {
-      const info = await this.cluster.cluster('info');
-      const nodes = await this.cluster.cluster('nodes');
-      
+      const info = await (this.cluster as any).cluster('info');
+      const nodes = await (this.cluster as any).cluster('nodes');
+
       return {
-        state: info.state,
-        clusterEnabled: info.cluster_enabled,
-        nodeCount: Object.keys(nodes).length,
+        state: info?.state,
+        clusterEnabled: info?.cluster_enabled,
+        nodeCount: nodes ? Object.keys(nodes).length : 0,
       };
     } catch (error) {
       this.logger.error('Error getting cluster health:', error);
