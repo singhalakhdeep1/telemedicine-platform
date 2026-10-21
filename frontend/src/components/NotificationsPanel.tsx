@@ -8,8 +8,8 @@ interface Notification {
   type: string;
   title: string;
   message: string;
-  read: boolean;
-  createdAt: string;
+  status: string;
+  sentAt: string;
 }
 
 interface NotificationsPanelProps {
@@ -30,11 +30,11 @@ export default function NotificationsPanel({ isOpen, onClose }: NotificationsPan
   const fetchNotifications = async () => {
     try {
       const [notifs, count] = await Promise.all([
-        api.get('/notifications'),
-        api.get('/notifications/unread-count'),
+        api.get<Notification[]>('/notifications'),
+        api.get<{ count: number }>('/notifications/unread-count'),
       ]);
-      setNotifications(notifs.data);
-      setUnreadCount(count.data.count);
+      setNotifications(notifs);
+      setUnreadCount(count.count);
     } catch (error) {
       console.error('Failed to fetch notifications');
     }
@@ -66,13 +66,13 @@ export default function NotificationsPanel({ isOpen, onClose }: NotificationsPan
               key={notif.id}
               onClick={() => markAsRead(notif.id)}
               className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
-                !notif.read ? 'bg-blue-50' : ''
+                notif.status !== 'READ' ? 'bg-blue-50' : ''
               }`}
             >
               <p className="font-medium text-sm">{notif.title}</p>
               <p className="text-sm text-gray-600">{notif.message}</p>
               <p className="text-xs text-gray-400 mt-1">
-                {new Date(notif.createdAt).toLocaleString()}
+                {new Date(notif.sentAt).toLocaleString()}
               </p>
             </div>
           ))

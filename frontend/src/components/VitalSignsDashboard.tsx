@@ -42,13 +42,13 @@ export default function VitalSignsDashboard({ patientId }: VitalSignsDashboardPr
   const fetchData = async () => {
     try {
       const [devicesRes, signsRes, alertsRes] = await Promise.all([
-        api.get('/iot/devices'),
-        api.get('/iot/vital-signs'),
-        api.get('/iot/alerts?acknowledged=false'),
+        api.get<Device[]>('/iot/devices'),
+        api.get<VitalSign[]>('/iot/vital-signs'),
+        api.get<any[]>('/iot/alerts?acknowledged=false'),
       ]);
-      setDevices(devicesRes.data);
-      setVitalSigns(signsRes.data);
-      setAlerts(alertsRes.data);
+      setDevices(devicesRes);
+      setVitalSigns(signsRes);
+      setAlerts(alertsRes);
     } catch (error) {
       console.error('Failed to fetch vital signs data');
     }

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AppointmentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -56,7 +57,7 @@ export class VideoConsultationService {
     // Update appointment status
     await this.prisma.appointment.update({
       where: { id: videoCall.appointmentId },
-      data: { status: 'COMPLETED' },
+      data: { status: AppointmentStatus.COMPLETED },
     });
 
     return videoCall;

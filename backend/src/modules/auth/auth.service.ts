@@ -5,7 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { UserRole } from '@prisma/client';
+import { UserRole, UserStatus, DoctorSpecialization } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -31,7 +31,7 @@ export class AuthService {
         email: dto.email,
         password: hashedPassword,
         role: dto.role,
-        status: dto.role === UserRole.ADMIN ? UserRole.ACTIVE : UserRole.PENDING_VERIFICATION,
+        status: dto.role === UserRole.ADMIN ? UserStatus.ACTIVE : UserStatus.PENDING_VERIFICATION,
       },
     });
 

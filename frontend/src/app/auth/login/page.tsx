@@ -14,12 +14,11 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await api.post('/auth/login', formData);
-      const { user, accessToken, refreshToken } = response.data;
+      const { user, accessToken, refreshToken } = await api.post<{ user: any; accessToken: string; refreshToken: string }>('/auth/login', formData);
       setAuth(user, accessToken, refreshToken);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed');
+      setError(err.data?.message || err.message || 'Login failed');
     }
   };
 

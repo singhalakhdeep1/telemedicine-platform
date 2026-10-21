@@ -43,8 +43,8 @@ export default function EHRConnectionUI({ patientId }: EHRConnectionUIProps) {
 
   const fetchConnections = async () => {
     try {
-      const res = await api.get('/ehr/connections');
-      setConnections(res.data);
+      const res = await api.get<EHRConnection[]>('/ehr/connections');
+      setConnections(res);
     } catch (error) {
       console.error('Failed to fetch EHR connections');
     }
@@ -93,8 +93,8 @@ export default function EHRConnectionUI({ patientId }: EHRConnectionUIProps) {
 
   const fetchSyncLogs = async (connectionId: string) => {
     try {
-      const res = await api.get(`/ehr/connections/${connectionId}/logs`);
-      setSyncLogs(res.data);
+      const res = await api.get<SyncLog[]>(`/ehr/connections/${connectionId}/logs`);
+      setSyncLogs(res);
     } catch (error) {
       console.error('Failed to fetch sync logs');
     }

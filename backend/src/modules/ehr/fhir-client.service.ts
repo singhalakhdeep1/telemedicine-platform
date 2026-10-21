@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import axios from 'axios';
 
 @Injectable()
 export class FhirClientService {
@@ -9,104 +8,70 @@ export class FhirClientService {
     this.baseUrl = process.env.FHIR_SERVER_URL || 'https://hapi.fhir.org/baseR4';
   }
 
+  private async fhirFetch(path: string, options: RequestInit = {}) {
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      ...options,
+      headers: { 'Content-Type': 'application/fhir+json', ...options.headers },
+    });
+    if (!res.ok) throw new Error(`FHIR error: ${res.status} ${res.statusText}`);
+    return res.json();
+  }
+
   async createPatient(patientData: any) {
-    try {
-      const response = await axios.post(`${this.baseUrl}/Patient`, {
-        resourceType: 'Patient',
-        ...patientData,
-      });
-      return response.data;
-    } catch (error) {
-      throw new Error(`FHIR error: ${error.message}`);
-    }
+    return this.fhirFetch('/Patient', {
+      method: 'POST',
+      body: JSON.stringify({ resourceType: 'Patient', ...patientData }),
+    });
   }
 
   async getPatient(fhirId: string) {
-    try {
-      const response = await axios.get(`${this.baseUrl}/Patient/${fhirId}`);
-      return response.data;
-    } catch (error) {
-      throw new Error(`FHIR error: ${error.message}`);
-    }
+    return this.fhirFetch(`/Patient/${fhirId}`);
   }
 
   async searchPatient(identifier: string) {
-    try {
-      const response = await axios.get(
-        `${this.baseUrl}/Patient?identifier=${identifier}`,
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error(`FHIR error: ${error.message}`);
-    }
+    return this.fhirFetch(`/Patient?identifier=${encodeURIComponent(identifier)}`);
   }
 
   async createObservation(observationData: any) {
-    try {
-      const response = await axios.post(`${this.baseUrl}/Observation`, {
-        resourceType: 'Observation',
-        ...observationData,
-      });
-      return response.data;
-    } catch (error) {
-      throw new Error(`FHIR error: ${error.message}`);
-    }
+    return this.fhirFetch('/Observation', {
+      method: 'POST',
+      body: JSON.stringify({ resourceType: 'Observation', ...observationData }),
+    });
   }
 
   async getPatientObservations(patientFhirId: string) {
-    try {
-      const response = await axios.get(
-        `${this.baseUrl}/Observation?subject=Patient/${patientFhirId}`,
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error(`FHIR error: ${error.message}`);
-    }
+    return this.fhirFetch(`/Observation?subject=Patient/${patientFhirId}`);
   }
 
   async createCondition(conditionData: any) {
-    try {
-      const response = await axios.post(`${this.baseUrl}/Condition`, {
-        resourceType: 'Condition',
-        ...conditionData,
-      });
-      return response.data;
-    } catch (error) {
-      throw new Error(`FHIR error: ${error.message}`);
-    }
+    return this.fhirFetch('/Condition', {
+      method: 'POST',
+      body: JSON.stringify({ resourceType: 'Condition', ...conditionData }),
+    });
   }
 
   async createMedicationRequest(medicationData: any) {
-    try {
-      const response = await axios.post(`${this.baseUrl}/MedicationRequest`, {
-        resourceType: 'MedicationRequest',
-        ...medicationData,
-      });
-      return response.data;
-    } catch (error) {
-      throw new Error(`FHIR error: ${error.message}`);
-    }
+    return this.fhirFetch('/MedicationRequest', {
+      method: 'POST',
+      body: JSON.stringify({ resourceType: 'MedicationRequest', ...medicationData }),
+    });
   }
 
   async exportPatientBundle(patientFhirId: string) {
-    try {
-      const [patient, observations, conditions] = await Promise.all([
-        this.getPatient(patientFhirId),
-        this.getPatientObservations(patientFhirId),
-        axios.get(`${this.baseUrl}/Condition?subject=Patient/${patientFhirId}`),
-      ]);
+    const [patient, observations, conditions] = await Promise.all([
+      this.getPatient(patientFhirId),
+      this.getPatientObservations(patientFhirId),
+      this.fhirFetch(`/Condition?subject=Patient/${patientFhirId}`),
+    ]);
 
-      return {
-        resourceType: 'Bundle',
-        type: 'collection',
-        entry: [
-          { resource: patient.data },
-          ...(observations.data.entry || []),
-          ...(conditions.data.entry || []),
-        ],
-      };
-    } catch (error) {
-      throw new Error(`FHIR error: ${error.message}`);
-    }
+    return {
+      resourceType: 'Bundle',
+      type: 'collection',
+      entry: [
+        { resource: patient },
+        ...(observations.entry || []),
+        ...(conditions.entry || []),
+      ],
+    };
   }
 }

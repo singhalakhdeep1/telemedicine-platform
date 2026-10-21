@@ -43,10 +43,9 @@ export default function AnalyticsDashboard({ doctorId }: AnalyticsDashboardProps
   const fetchMetrics = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/analytics/metrics', {
-        params: { period: selectedPeriod, doctorId },
-      });
-      setMetrics(res.data);
+      const query = new URLSearchParams({ period: selectedPeriod, ...(doctorId ? { doctorId } : {}) });
+      const res = await api.get<Metric[]>(`/analytics/metrics?${query}`);
+      setMetrics(res);
     } catch (error) {
       console.error('Failed to fetch metrics');
     }
@@ -55,8 +54,8 @@ export default function AnalyticsDashboard({ doctorId }: AnalyticsDashboardProps
 
   const fetchReports = async () => {
     try {
-      const res = await api.get('/analytics/reports');
-      setReports(res.data);
+      const res = await api.get<Report[]>('/analytics/reports');
+      setReports(res);
     } catch (error) {
       console.error('Failed to fetch reports');
     }
@@ -71,9 +70,17 @@ export default function AnalyticsDashboard({ doctorId }: AnalyticsDashboardProps
     }
   };
 
+  const metricRoute: Record<string, string> = {
+    APPOINTMENT_VOLUME: 'appointments',
+    REVENUE: 'revenue',
+    NO_SHOW_RATE: 'no-show',
+    AVERAGE_CONSULTATION_TIME: 'consultation-time',
+  };
+
   const calculateMetric = async (metricType: string) => {
+    const route = metricRoute[metricType] ?? metricType.toLowerCase();
     try {
-      await api.post(`/analytics/metrics/${metricType.toLowerCase()}`, {
+      await api.post(`/analytics/metrics/${route}`, {
         period: selectedPeriod,
         doctorId,
       });
